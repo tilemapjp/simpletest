@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Auckland HERE Mapping Sample</title>
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://npmcdn.com/leaflet@1.0.0-rc.2/dist/leaflet.css" />
+	<style>
+		body {
+			padding: 0;
+			margin: 0;
+		}
+		html, body, #map {
+			height: 100%;
+		}
+		#map {
+            z-index: 0;
+		}
+
+        .ctrl-panel .plus-minus-widget {
+            width: 120px
+        }
+
+        .ctrl-panel .plus-minus-widget input,.ctrl-panel .plus-minus-widget button {
+            color: #274190;
+            height: 30px;
+            overflow: hidden;
+            text-align: center
+        }
+
+        .ctrl-panel td {
+            padding: 3px
+        }
+
+        .ctrl-panel {
+            overflow-x: hidden;
+            clear: both
+        }
+
+        .ctrl-panel input,.ctrl-panel textarea,.ctrl-panel button,.ctrl-panel select {
+            color: black;
+            font-size: 12px;
+            overflow: auto
+        }
+
+        .ctrl-panel select.form-control,.ctrl-panel input.form-control {
+            padding: 2px 6px;
+            height: 30px
+        }
+
+        .ctrl-panel {
+            background-color: #f8f8f8;
+            border-right: solid #ccc 1px;
+            border-bottom: solid #ccc 1px;
+            max-width: 500px;
+            max-height: calc(100% - 50px);
+            color: #274190;
+            display: block;
+            font-size: 12px;
+            left: 0;
+            padding: 10px;
+            position: absolute;
+            text-align: justify;
+            top: 0px;
+            z-index: 10;
+            -webkit-transition: left 0.5s, -webkit-transform 2s;
+            transition: left 0.5s, transform 2s;
+            clear: both
+        }
+
+        .ctrl-panel table {
+            width: 100%
+        }
+
+        .ctrl-panel input,.ctrl-panel textarea,.ctrl-panel button,.ctrl-panel select {
+            color: black;
+            font-size: 12px;
+            overflow: auto
+        }
+
+        .ctrl-panel input[type=range] {
+            overflow: visible
+        }
+
+        #toggle-ctrl-panel {
+            cursor: pointer;
+            float: right;
+            padding: 0 0 10px 20px
+        }
+	</style>
+  </head>
+  <body>
+    <div class="ctrl-panel">
+        <span id="toggle-ctrl-panel" class="glyphicon glyphicon-menu-left"></span>
+	    <div class="form-group">
+		    <label for="tf_type">Traffic type:</label>
+		    <select name="tf_type" id="tf_type" class="form-control input-sm input-wide">
+			    <option value="RTN">Real Time (New API)</option selected>
+	    		<option value="TPN">Pattern (New API)</option>
+			    <option value="RTO">Real Time (Old API)</option>
+	    		<option value="TPO">Pattern (Old API)</option>
+		    </select>
+    	</div>
+	    <div class="form-group TP hide">
+		    <label for="day">Day:</label>
+		    <select name="day" id="day" class="form-control input-sm input-wide">
+			    <option value="0">Sunday</option>
+		    	<option value="1">Monday</option>
+			    <option value="2">Tuesday</option>
+			    <option value="3">Wednesday</option>
+			    <option value="4">Thursday</option>
+			    <option value="5">Friday</option>
+			    <option value="6">Saturday</option>
+    		</select>
+	    </div>
+    	<div class="form-group TP PR hide">
+			<label for="slider"><span class="TP">Local Time(UTC+13): </span><span class="PR">Depart </span><span id="slider_output">00:00</span><span class="PR"> later</span></label>
+			<input type="range" name="slider" id="slider" min="0" value="0" max="96" step="1">
+	    </div>
+    	<div class="form-group">
+			<label for="vector">Vector traffic</label>
+			<button name="vactor" id="vector">Request</button>
+	    </div>
+
+    </div>
+    <div id="map"></div>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script   src="https://code.jquery.com/jquery-1.12.4.min.js"   integrity="sha256-ZosEbRLbNQzLpnKIkEdrPv7lOy9C27hHQ+Xp8a4MxAQ="   crossorigin="anonymous"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+    <script src="https://npmcdn.com/leaflet@1.0.0-rc.2/dist/leaflet.js"></script>
+	<script>
+		//御社で取得したapp_id, app_codeで置き換えください。
+		var app_id = "inCUge3uprAQEtRaruyaZ8",
+			app_code = "9Vyk_MElhgPCytA7z3iuPA",
+			center = {lat: -36.851861, lng: 174.763947},
+			zoom = 15;
+
+	    //  Show/hide control panel on examples pages
+	    $('#toggle-ctrl-panel').click(function(){
+		    var noteContainer = $('.ctrl-panel')[0];
+		    var width = $('.ctrl-panel').width();
+
+		    if (noteContainer.style.left == '' || noteContainer.style.left == '0px') {
+			    noteContainer.style.left = '-' + (width - 30) + "px";
+    			$('#toggle-ctrl-panel').removeClass('glyphicon-menu-left').addClass('glyphicon-menu-right');
+	    	} else {
+		    	noteContainer.style.left = '0px';
+			    $('#toggle-ctrl-panel').removeClass('glyphicon-menu-right').addClass('glyphicon-menu-left');
+    		}
+	    });
+
+        var timezone = +13; // NZ's Time Zone
+        var weekDay = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+        //Leaflet 地図オブジェクト作成
+		var map = L.map('map',{zoomControl: false});
+        L.control.zoom({
+            position:'topright'
+        }).addTo(map);
+
+        //HERE標準地図タイルによるタイルレイヤー作成
+        //https://developer.here.com/rest-apis/documentation/enterprise-map-tile/topics/resource-base-basetile.html
+        //等が参考になります。
+		var baseTile = L.tileLayer('https://{s}.base.maps.cit.api.here.com/maptile/2.1/maptile/' +
+        '{map_id}/{scheme}/{z}/{x}/{y}/{size}/{format}' +
+        '?app_id={app_id}&app_code={app_code}', {
+			maxZoom: 20,
+			attribution: 'Map data &copy; HERE 2016',
+			subdomains: '1234',
+            format: 'png',
+            size: 256,
+            scheme: 'normal.day',
+            map_id: 'newest',
+            app_id: app_id,
+            app_code: app_code
+		});
+        baseTile.setZIndex(0);
+        baseTile.addTo(map);
+
+		map.setView(center,zoom);
+
+        //ルートを表示するポリラインのグローバル変数
+        var routeLine;
+        //アイソラインを表示するポリゴンのグローバル変数
+        var isoPoly;
+        //トラフィックを表示するタイルレイヤのグローバル変数
+        var trafficTile;
+        //ルートで検索に利用される、UIで指定された時刻のUTC時刻（UI上ではローカル時刻です）
+        //トラフィックパターンの場合は、直近の日時が選ばれます。
+        var utc_time;
+		var utc_epoch;
+        //UIで指定されたルート/トラフィック検索条件を入れるテキスト変数
+        var time_text;
+        //トラフィックタイルに利用される、UIで指定されたパターンの条件、ローカル時刻での日曜0時を0とした秒数
+        //予測トラフィックの場合は、指定された時刻に相当するパターンが選ばれます。
+        var pattern_time;
+        //各要素からのポップアップオブジェクト
+        var popup;
+
+        //utc_time/time_text/pattern_timeを初期化
+        calculateTrafficTime();
+        //トラフィックタイル、ルート検索を初期化
+        createTrafficTile();
+
+        //セレクトボックス変更で、ルート検索条件変更
+        $("#mode,#traffic").on("change",function(){
+            calculateRoute();
+        });
+        //曜日変更の場合は、utc_time/time_text/pattern_time、トラフィックタイルのアップデートも
+        $("#day").on("change",function(){
+            updateShown();
+        });
+
+        //トラフィック条件変更で、補助UIを表示/非表示、その後utc_time/time_text/pattern_time、トラフィックタイルのアップデートも
+        $("#tf_type").on("change",function(){
+            var tf_val = $("#tf_type").val().substr(0,2);
+            ['RT','PR','TP'].forEach(function(val){
+                if (tf_val == val) {
+                    $("." + val).removeClass("hide");
+                } else {
+                    $("." + val + ":not('." + tf_val + "')").addClass("hide");
+                }
+            });
+            updateShown();
+        });
+
+        //時間指定スライダ変更、表示変更しその後utc_time/time_text/pattern_time、トラフィックタイルのアップデートも
+        $("#slider").on("change",function(){
+            var sliderVal = parseInt($("#slider").val());
+            var milliSec  = sliderVal * 900000;
+            var hour = ("0" + Math.floor(milliSec / 3600000)).slice(-2);
+            var min  = ("0" + Math.floor((milliSec % 3600000) / 60000)).slice(-2);
+            $("#slider_output").text(hour + ":" + min);
+            updateShown();
+        });
+
+		//ベクタトラフィック取得ボタン
+		$("#vector").on("click",function(){
+			var bounds = map.getBounds();
+			console.log(bounds);
+			console.log(bounds.getWest());
+			console.log(bounds.getSouth());
+			var url = "https://traffic.cit.api.here.com/traffic/6.2/flow.json" +
+							"?app_id=" + app_id +
+							"&app_code=" + app_code +
+							"&bbox=" + bounds.getNorth() + "," + bounds.getWest() + ";" + bounds.getSouth() + "," + bounds.getEast() +
+							"&responseattributes=sh,fc";
+			$.ajax(url,function(data){
+				console.log(data);
+			});
+
+//			https://traffic.cit.api.here.com/traffic/6.2/flow.xml
+//?app_id={YOUR_APP_ID}
+//&app_code={YOUR_APP_CODE}
+//&bbox=52.5358,13.2954;52.4613,13.5022
+//&locationreferences=shp
+		});
+
+        //utc_time/time_text/pattern_timeのアップデート、その後トラフィックタイル、ルート検索のアップデート
+        function updateShown() {
+            //utc_time/time_text/pattern_timeをアップデート
+            calculateTrafficTime();
+            //トラフィックタイル、ルート検索をアップデート
+            createTrafficTile();
+        }
+
+        //トラフィック検索条件指定のUIに従い、utc_time/time_text/pattern_timeを変更
+	    function calculateTrafficTime()
+	    {
+            var tf_type = $("#tf_type").val().substr(0,2);
+            if (tf_type == "RT") {
+                //リアルタイムの場合
+                utc_time = null;
+                time_text = "Real Time";
+                pattern_time = null;
+                return;
+            }
+            //ローカル時刻相当のエポック、ただしミリ秒
+            var localEpoch = new Date().getTime() + timezone * 3600000;
+
+            if (tf_type == "PR") {
+                //予測の場合
+                var pr_slider = parseInt($("#slider").val());
+                var delta = pr_slider * 900000;
+
+                //ルート検索の対象時刻は現在の時刻からスライダ指定秒数経過後
+                localEpoch = localEpoch + delta;
+                var localDate = new Date(localEpoch);
+                time_text = formatDate(localDate, 'Predictive Traffic on YYYY-MM-DDThh:mm:ss');
+                //予測の場合、パターン時刻は本日の曜日数列 * 86400秒 + 同日の経過秒数
+                pattern_time = Math.floor((localDate.getDay() * 86400000 + (localEpoch % 86400000)) / 1000);
+            } else if (tf_type == "TP") {
+                //パターンの場合
+                var localDate = new Date(localEpoch);
+                var targetDay = $("#day").val();
+                var tp_slider = parseInt($("#slider").val());
+                var deltaDay  = targetDay - localDate.getDay();
+                //パターンの場合、ルート検索の対象時刻は現在の時刻以降のパターンの合う時刻
+                //ただし、今日と同じ曜日の場合は、1週間後とする
+                if (deltaDay <= 0) deltaDay = deltaDay + 7;
+                var deltaTime = tp_slider * 900000;
+                localEpoch = (Math.floor(localEpoch / 86400000) + deltaDay) * 86400000 + deltaTime;
+                //パターンの場合、パターン時刻はUIで指定された曜日数列 * 86400秒 + UIで指定された秒数
+                pattern_time = (targetDay * 86400000 + deltaTime) / 1000;
+                time_text = "Traffic Pattern of " + weekDay[targetDay] + "," + formatDate(new Date(localEpoch), 'hh:mm:ss');
+            }
+
+            //各ロジックで導出されたlocalEpochから、ルート検索で利用するdeparture文字列生成
+            //UTCで導出している
+			utc_epoch = localEpoch - timezone * 3600000;
+            utc_time = formatDate(new Date(utc_epoch), 'YYYY-MM-DDThh:mm:ss%2B00');
+			utc_epoch = utc_epoch / 1000;
+
+            return;
+    	}
+
+        //日時のフォーマッタ
+        function formatDate (date, format) {
+            format = format.replace(/YYYY/g, date.getUTCFullYear());
+            format = format.replace(/MM/g, ('0' + (date.getUTCMonth() + 1)).slice(-2));
+            format = format.replace(/DD/g, ('0' + date.getUTCDate()).slice(-2));
+            format = format.replace(/hh/g, ('0' + date.getUTCHours()).slice(-2));
+            format = format.replace(/mm/g, ('0' + date.getUTCMinutes()).slice(-2));
+            format = format.replace(/ss/g, ('0' + date.getUTCSeconds()).slice(-2));
+            return format;
+        }
+
+        //トラフィックタイルのアップデート
+        function createTrafficTile() {
+        	var tf_type = $("#tf_type").val().substr(0,2);
+			var ap_type = $("#tf_type").val().substr(2,1) == 'O';
+            //既にトラフィックタイルが存在する場合はアップデート
+            if (trafficTile) {
+                map.removeLayer(trafficTile);
+            }
+            ////トラフィックタイルのURLとオプション指定
+            ////リアルタイムの場合は
+            ////https://developer.here.com/rest-apis/documentation/traffic/topics/example-tile.html
+            ////トラフィックパターンの場合は
+            ////https://developer.here.com/rest-apis/documentation/traffic/topics/example-tile-pattern.html
+            ////等を参考に
+            var url = ap_type ?
+				'https://tiles.traffic.cit.api.here.com/traffic/6.0/tiles/' +
+                '{z}/{x}/{y}/{size}/{format}' +
+                '?app_id={app_id}&app_code={app_code}' :
+            	'https://{s}.traffic.maps.cit.api.here.com' +
+				'/maptile/2.1/flowtile/{map_id}/{scheme}/{z}/{x}/{y}/{size}/{format}' +
+				'?app_id={app_id}&app_code={app_code}';
+            var trafficOption = ap_type ?
+			{
+		        maxZoom: 20,
+                format: 'png32',
+                size: 256,
+                app_id: app_id,
+                app_code: app_code
+            } :
+			{
+		        maxZoom: 20,
+				subdomains: '1234',
+                format: 'png',
+                size: 256,
+	            scheme: 'normal.traffic.day',
+    	        map_id: 'newest',
+                app_id: app_id,
+                app_code: app_code
+            };
+            if (pattern_time != null) {
+                url = url + (ap_type ? "&pattern_time={pattern_time}" : "&time={pattern_time}");
+                trafficOption["pattern_time"] = ap_type ? pattern_time : utc_epoch;
+            }
+		    trafficTile = L.tileLayer(url, trafficOption);
+            trafficTile.setZIndex(10);
+            trafficTile.addTo(map);
+        }
+
+        //ルート検索の始点終点を、最初ランダムに設定するための座標を生成する関数
+        //centerを中心に、minDelta km～maxDelta km間の経緯度を生成
+        function createRandomLatLng(center, minDelta, maxDelta) {
+            //Based on http://tancro.e-central.tv/grandmaster/script/vincentyJS.html
+            var check;
+            var Radius_long = 6378137.0;
+            var Henpei = 1/298.257222101;
+            var Radius_short = Radius_long * (1 - Henpei); // 6356752.314
+
+            function doRad(a){
+                return a/180* Math.PI;
+            }
+
+            function radDo(a){
+                return a*180/ Math.PI;
+            }
+
+            function xy(x,y){
+                return Math.pow(x,y);
+            }
+
+            function vincenty(lat1,lng1,alpha12,length){
+                var lat = doRad(lat1);
+                var U1 = Math.atan((1 - Henpei) * Math.tan(lat));
+                var sigma1 = Math.atan( Math.tan(U1) / Math.cos(alpha12) );
+                var alpha = Math.asin( Math.cos(U1) * Math.sin(alpha12) );
+                var u2 =  xy( Math.cos(alpha),2) * (xy(Radius_long,2) -xy(Radius_short,2)) / xy(Radius_short,2);
+                var A = 1 + (u2/16384)*(4096 + u2 * (-768 + u2 * (320 - 175 * u2)));
+                var B = (u2 / 1024) * (256 + u2 * (-128 + u2 * (74 - 47 * u2)));
+                var sigma = length / Radius_short / A;
+                do {
+                    var sigma0 = sigma;
+                    var dm2 = 2 * sigma1 + sigma;
+                    var x = Math.cos(sigma) * ( -1 + 2 * xy(Math.cos(dm2),2) ) - B / 6 * Math.cos(dm2) * ( -3 + 4 * xy(Math.sin(dm2),2)) * ( -3 + 4 * xy(Math.cos(dm2),2));
+                    var dSigma = B * Math.sin(sigma) * ( Math.cos(dm2) + B / 4 * x);
+                    sigma = length / Radius_short / A + dSigma;
+                } while ( Math.abs(sigma0 - sigma)>1e-9 );
+
+                var x = Math.sin(U1) * Math.cos(sigma) + Math.cos(U1) * Math.sin(sigma) * Math.cos(alpha12)
+                var y = (1 - Henpei) * xy ( xy( Math.sin(alpha),2) + xy( Math.sin(U1) * Math.sin(sigma) - Math.cos(U1) * Math.cos(sigma) * Math.cos(alpha12) ,2) , 1 / 2);
+                var lamda = Math.sin(sigma) * Math.sin(alpha12) / (Math.cos(U1) * Math.cos(sigma) - Math.sin(U1) * Math.sin(sigma) * Math.cos(alpha12));
+                lamda = Math.atan(lamda);
+                var C = (Henpei / 16) * xy(Math.cos(alpha),2) * (4 + Henpei * (4 - 3 * xy(Math.cos(alpha),2)));
+                var z = Math.cos(dm2) + C * Math.cos(sigma) * (-1 + 2 * xy(Math.cos(dm2),2) );
+                var omega = lamda - (1 - C) * Henpei * Math.sin(alpha) * (sigma + C * Math.sin(sigma) * z);
+                console.log(omega);
+                console.log(lng1);
+
+                return [radDo(Math.atan(x / y)),lng1 + radDo(omega)];
+            }
+
+            var delta = (minDelta + Math.random() * (maxDelta - minDelta))*1000;
+            var alpha = Math.random() * 2 * Math.PI;
+
+            var latlng = vincenty(center.lat,center.lng,alpha,delta);
+
+            return {lat:latlng[0],lng:latlng[1]};
+        }
+	</script>
+  </body>
+</html>
